@@ -1,3 +1,26 @@
+import streamlit as st
+import numpy as np
+from scipy.optimize import root_scalar
+
+# ==========================================
+# 1. MÓDULO BACKEND: LÓGICA DE CÁLCULO E IALA
+# ==========================================
+
+def ecuacion_equilibrio_arquimedes(T, m_total, rho_agua, D1, D2, H2):
+    R1 = D1 / 2.0
+    R2 = D2 / 2.0
+    Vext_cono = (1.0 / 3.0) * np.pi * H2 * (R1**2 + R2**2 + R1 * R2)
+    
+    if T <= H2:
+        R_t = R2 + (R1 - R2) * (T / H2)
+        V_sum = (1.0 / 3.0) * np.pi * T * (R2**2 + R_t**2 + R2 * R_t)
+    else:
+        v_rem = (T - H2) * np.pi * (R1**2)
+        V_sum = Vext_cono + v_rem
+        
+    empuje = V_sum * rho_agua
+    return empuje - m_total
+
 def calcular_boya_iala(D1, H1, D2, H2, Dp, t, rho_agua, m_estructura, m_lastre, m_equipos, rho_pu, V_viento, V_corriente):
     """
     Backend de cálculo hidrostático, estabilidad y verificación IALA G1006 / G1099.
@@ -87,12 +110,10 @@ def calcular_boya_iala(D1, H1, D2, H2, Dp, t, rho_agua, m_estructura, m_lastre, 
     cumple_gm = 0.6 <= gm <= 1.2 and gm > 0
     
     # 4. Análisis Riguroso de Cargas Ambientales y Ángulo de Escora Estática
-    # Altura de la torre expuesta al viento estimada en 2.0 m sobre el casco
     h_torre = 2.0 
     area_viento = D1 * h_torre  
     area_corriente = Vext_cono + (D1 * T * 0.5)
     
-    # Velocidades en m/s (V_viento en km/h convertida a m/s; V_corriente ya ingresa en m/s)
     v_viento_ms = V_viento * (1000.0 / 3600.0)
     v_corr_ms = V_corriente  
     
@@ -100,18 +121,13 @@ def calcular_boya_iala(D1, H1, D2, H2, Dp, t, rho_agua, m_estructura, m_lastre, 
     F_corriente = 0.5 * rho_agua * (v_corr_ms**2) * 1.0 * area_corriente
     F_total = F_viento + F_corriente
     
-    # Brazo de momento del viento (desde la línea de flotación hasta la mitad de la torre expuesta)
     z_centro_viento = Ht + (h_torre / 2.0)
     z_centro_corriente = T / 2.0
     brazo_momento = (F_viento * z_centro_viento + F_corriente * z_centro_corriente) / (F_total + 1e-6)
     
-    # Momento escorante total
     momento_escorante = F_total * brazo_momento
-    
-    # Desplazamiento en Newtons
     desplazamiento_N = m_total * 9.81
     
-    # Cálculo estricto del ángulo de escora (tan(theta) = Momento / (Desplazamiento * GM))
     tan_theta = momento_escorante / (desplazamiento_N * gm + 1e-6)
     theta_escora = np.degrees(np.arctan(tan_theta))
     cumple_escora = theta_escora <= 15.0
@@ -138,3 +154,79 @@ def calcular_boya_iala(D1, H1, D2, H2, Dp, t, rho_agua, m_estructura, m_lastre, 
         "lastre_adicional_optimo": lastre_adicional_optimo
     }
     return resultados
+
+# ==========================================
+# 2. MÓDULO FRONTEND: INTERFAZ CON STREAMLIT
+# ==========================================
+
+st.set_page_config(page_title="Validador IALA G1006/G1099 - Boyas Oceanográficas", layout="wide")
+
+st.title("🌊 Validador de Normativa IALA para Boyas Oceanográficas")
+st.markdown("""
+Esta aplicación evalúa los parámetros de diseño geométrico, masa, **reserva de flotabilidad**, **calado ($T$)**, **estabilidad metacéntrica ($GM$)** y **ángulo de escora** conforme a las recomendaciones de la **normativa IALA G1006 / G1099**.
+""")
+
+st.sidebar.header("⚙️ Parámetros de Diseño y Geometría")
+D1 = st.sidebar.number_input("Diámetro Cilindro Superior D1 (m)", value=2.0, step=0.1)
+H1 = st.sidebar.number_input("Altura Cilindro Superior H1 (m)", value=1.04, step=0.01)
+D2 = st.sidebar.number_input("Diámetro Menor Cono D2 (m)", value=1.2, step=0.1)
+H2 = st.sidebar.number_input("Altura Cono Inferior H2 (m)", value=0.6, step=0.01)
+Dp = st.sidebar.number_input("Diámetro Tubo Pasante Dp (m)", value=0.1, step=0.01)
+t = st.sidebar.number_input("Espesor de pared HDPE t (m)", value=0.012, step=0.001)
+
+st.sidebar.header("⚖️ Masas y Condiciones Ambientales")
+rho_agua = st.sidebar.number_input("Densidad Agua de Mar (kg/m³)", value=1025.0, step=5.0)
+m_estructura = st.sidebar.number_input("Masa Estructura/Torre (kg)", value=100.0, step=10.0)
+m_lastre = st.sidebar.number_input("Masa Lastre Contrapeso (kg)", value=400.0, step=50.0)
+m_equipos = st.sidebar.number_input("Masa Sensores y Equipos (kg)", value=99.63, step=5.0)
+rho_pu = st.sidebar.number_input("Densidad Poliuretano (kg/m³)", value=50.0, step=5.0)
+
+V_viento = st.sidebar.number_input("Velocidad del Viento (km/h)", value=100.4, step=5.0)
+V_corriente = st.sidebar.number_input("Velocidad de la Corriente (m/s)", value=1.99, step=0.1)
+
+if st.button("🚀 Ejecutar Análisis y Validación IALA", type="primary"):
+    res = calcular_boya_iala(D1, H1, D2, H2, Dp, t, rho_agua, m_estructura, m_lastre, m_equipos, rho_pu, V_viento, V_corriente)
+    
+    st.header("📊 Resultados del Análisis Hidrostático")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Masa Total ($M_{total}$)", f"{res['m_total']:.2f} kg")
+    col2.metric("Volumen Sumergido ($V_{sum}$)", f"{res['v_sum']:.4f} m³")
+    col3.metric("Calado Estimado ($T$)", f"{res['T']:.4f} m")
+    col4.metric("Factor Reserva ($RF$)", f"{res['rf']:.2f}")
+    
+    st.info(f"📍 **Condición Operativa de Calado:** {res['caso_calado']}")
+    
+    # ALERTA DINÁMICA DEL PUNTO ÓPTIMO IALA (RF = 2.25)
+    st.warning("### 🎯 Alerta de Referencia: Punto Óptimo IALA (Factor de Reserva $RF = 2.25$)")
+    st.markdown(f"""
+    Para cumplir exactamente con el **Punto Óptimo de Reserva de Flotabilidad ($RF = 2.25$)** de la norma IALA G1099:
+    * **Volumen Sumergido Requerido ($V_{{sum}}$):** `{res['v_sum_optimo_225']:.4f} m³`
+    * **Masa Total Requerida ($M_{{total}}$):** `{res['m_total_optima_225']:.1f} kg`
+    * **Contrapeso / Lastre Adicional a Añadir:** **`+{res['lastre_adicional_optimo']:.1f} kg`** 
+      *(calculado desde su masa total actual de {res['m_total']:.1f} kg)*
+    """)
+
+    st.markdown("---")
+    st.subheader("🚨 Alertas de Cumplimiento Normativo IALA G1099")
+    
+    # 1. Alerta Reserva de Flotabilidad
+    if res['cumple_rf']:
+        st.success(f"✅ **Reserva de Flotabilidad CUMPLE IALA:** El factor de reserva es de **{res['rf']:.2f}** (Rango aceptable IALA: 2.0 – 2.5).")
+    else:
+        if res['rf'] > 2.5:
+            st.error(f"❌ **NO CUMPLE (Exceso de flotabilidad / Boyante en exceso):** El factor actual es **{res['rf']:.2f}**. La masa es insuficiente para el volumen del casco. Se recomienda **aumentar el lastre en +{res['lastre_adicional_optimo']:.1f} kg** para alcanzar el óptimo IALA (RF = 2.25).")
+        else:
+            st.error(f"❌ **NO CUMPLE (Insuficiencia de flotabilidad):** El factor de reserva **{res['rf']:.2f}** está por debajo del mínimo de 2.0 requerido por IALA.")
+
+    # 2. Alerta Estabilidad Metacéntrica (GM)
+    if res['cumple_gm']:
+        st.success(f"✅ **Estabilidad Metacéntrica (GM) CUMPLE IALA:** $GM$ = **{res['gm']:.3f} m** (Rango recomendado: 0.6 m – 1.2 m). La boya es estable y auto-adrizante sin exceso de rigidez.")
+    else:
+        st.warning(f"⚠️ **ADVERTENCIA GM FUERA DE RANGO ÓPTIMO:** $GM$ = **{res['gm']:.3f} m**. Un valor muy bajo compromete el adrizamiento, y un valor muy alto (>1.2 m) genera movimientos violentos que fatigan la torre y dañan equipos.")
+
+    # 3. Alerta Ángulo de Escora
+    if res['cumple_escora']:
+        st.success(f"✅ **Ángulo de Escora CUMPLE IALA:** $\\theta$ = **{res['theta_escora']:.2f}°** (Límite operativo seguro: $\\le 15°$).")
+    else:
+        st.error(f"❌ **NO CUMPLE (Escora excesiva):** El ángulo de inclinación calculado es de **{res['theta_escora']:.2f}°**, superando el límite máximo recomendado de $15^\circ$ por la normativa IALA ante tormenta de diseño.")

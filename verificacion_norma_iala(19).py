@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
 from scipy.optimize import root_scalar
+import plotly.graph_objects as go
 
 # ==========================================
 # 1. MÓDULO BACKEND: LÓGICA DE CÁLCULO E IALA
@@ -156,7 +157,191 @@ def calcular_boya_iala(D1, H1, D2, H2, Dp, t, rho_agua, m_estructura, m_lastre, 
     return resultados
 
 # ==========================================
-# 2. MÓDULO FRONTEND: INTERFAZ CON STREAMLIT
+# 2. MÓDULO VISUALIZACIÓN 3D (PLOTLY)
+# ==========================================
+
+def generar_grafico_boya(D1, H1, D2, H2, Dp, T):
+    """
+    Genera la visualización 3D paramétrica de la boya con sus cotas y el plano de flotación dinámico.
+    """
+    R1 = D1 / 2.0
+    R2 = D2 / 2.0
+    Rp = Dp / 2.0
+    Ht = H1 + H2
+
+    theta = np.linspace(0, 2 * np.pi, 72)
+    z_steps = np.linspace(0, 1, 20)
+    THETA, Z_NORM = np.meshgrid(theta, z_steps)
+
+    fig = go.Figure()
+
+    # 1. Tronco de Cono Inferior (z de 0 a H2)
+    Z_cono = Z_NORM * H2
+    R_cono = R2 + (R1 - R2) * Z_NORM
+    X_cono = R_cono * np.cos(THETA)
+    Y_cono = R_cono * np.sin(THETA)
+
+    fig.add_trace(go.Surface(
+        x=X_cono, y=Y_cono, z=Z_cono,
+        colorscale=[[0, '#FFEE00'], [1, '#FFD700']],
+        showscale=False, opacity=0.82,
+        name='Tronco de Cono (H2)', hoverinfo='skip'
+    ))
+
+    # 2. Cilindro Superior (z de H2 a Ht)
+    Z_cil = H2 + Z_NORM * H1
+    X_cil = R1 * np.cos(THETA)
+    Y_cil = R1 * np.sin(THETA)
+
+    fig.add_trace(go.Surface(
+        x=X_cil, y=Y_cil, z=Z_cil,
+        colorscale=[[0, '#FFF200'], [1, '#FFE600']],
+        showscale=False, opacity=0.75,
+        name='Cilindro Superior (H1)', hoverinfo='skip'
+    ))
+
+    # 3. Tubo Pasante Central (z de 0 a Ht)
+    Z_tubo = Z_NORM * Ht
+    X_tubo = Rp * np.cos(THETA)
+    Y_tubo = Rp * np.sin(THETA)
+
+    fig.add_trace(go.Surface(
+        x=X_tubo, y=Y_tubo, z=Z_tubo,
+        colorscale=[[0, '#D4AF37'], [1, '#C5A000']],
+        showscale=False, opacity=0.95,
+        name=f'Tubo Pasante (Dp={Dp}m)', hoverinfo='skip'
+    ))
+
+    # 4. Aristas Estructurales (Bordes negros técnicos)
+    for r_ring, z_ring in [(R2, 0), (R1, H2), (R1, Ht), (Rp, Ht), (Rp, 0)]:
+        fig.add_trace(go.Scatter3d(
+            x=r_ring * np.cos(theta),
+            y=r_ring * np.sin(theta),
+            z=np.full_like(theta, z_ring),
+            mode='lines',
+            line=dict(color='#333333', width=3),
+            showlegend=False, hoverinfo='skip'
+        ))
+
+    # 5. Línea de Flotación Real (Intersección en Cono o en Cilindro)
+    T_visual = min(T, Ht) # Evita desbordamiento gráfico si sobrepasa Ht
+    if T_visual <= H2:
+        R_wl = R2 + (R1 - R2) * (T_visual / H2)
+        zona_txt = "Zona Cónica"
+    else:
+        R_wl = R1
+        zona_txt = "Zona Cilíndrica"
+
+    fig.add_trace(go.Scatter3d(
+        x=R_wl * np.cos(theta),
+        y=R_wl * np.sin(theta),
+        z=np.full_like(theta, T_visual),
+        mode='lines',
+        line=dict(color='#006400', width=7),
+        name=f'Línea de Flotación (T = {T:.4f} m)'
+    ))
+
+    # 6. Plano de Agua Translúcido
+    lim = R1 * 1.45
+    x_w = np.linspace(-lim, lim, 10)
+    y_w = np.linspace(-lim, lim, 10)
+    XW, YW = np.meshgrid(x_w, y_w)
+    ZW = np.full_like(XW, T_visual)
+
+    fig.add_trace(go.Surface(
+        x=XW, y=YW, z=ZW,
+        colorscale=[[0, '#2ECC71'], [1, '#27AE60']],
+        showscale=False, opacity=0.38,
+        name='Superficie del Agua', hoverinfo='skip'
+    ))
+
+    # 7. Líneas de Cota y Etiquetas de Parámetros en el Espacio 3D
+    # Cota D1 (Superior)
+    fig.add_trace(go.Scatter3d(
+        x=[-R1, R1], y=[0, 0], z=[Ht + 0.12, Ht + 0.12],
+        mode='lines+text',
+        line=dict(color='black', width=3),
+        text=['', f'D1 = {D1:.2f} m'],
+        textposition='top center',
+        textfont=dict(size=12, color='black'),
+        showlegend=False
+    ))
+
+    # Cota D2 (Inferior)
+    fig.add_trace(go.Scatter3d(
+        x=[-R2, R2], y=[0, 0], z=[-0.12, -0.12],
+        mode='lines+text',
+        line=dict(color='black', width=3),
+        text=['', f'D2 = {D2:.2f} m'],
+        textposition='bottom center',
+        textfont=dict(size=12, color='black'),
+        showlegend=False
+    ))
+
+    # Cota H1 y H2 (Lateral Izquierdo)
+    x_cota = -R1 * 1.25
+    fig.add_trace(go.Scatter3d(
+        x=[x_cota, x_cota, x_cota], y=[0, 0, 0], z=[0, H2, Ht],
+        mode='lines+markers+text',
+        line=dict(color='black', width=3),
+        marker=dict(size=4, color='black'),
+        text=['', f'H2 = {H2:.2f} m', f'H1 = {H1:.2f} m'],
+        textposition='middle left',
+        textfont=dict(size=11, color='black'),
+        showlegend=False
+    ))
+
+    # Flecha Vertical de Calado Resultante T (Lateral Derecho)
+    x_calado = R1 * 1.25
+    fig.add_trace(go.Scatter3d(
+        x=[x_calado, x_calado], y=[0, 0], z=[0, T_visual],
+        mode='lines+markers+text',
+        line=dict(color='#006400', width=5),
+        marker=dict(size=5, color='#006400'),
+        text=['Base (z=0)', f'<b>Calado (T) = {T:.4f} m</b><br>({zona_txt})'],
+        textposition='middle right',
+        textfont=dict(size=12, color='#004d00'),
+        showlegend=False
+    ))
+
+    # Configuración de Cámara, Proporción Real (aspectmode='data') y Cuadro de Datos
+    fig.update_layout(
+        title=dict(
+            text="Visualización Geométrica y de Calado de la Boya (IALA G1006)",
+            x=0.5, font=dict(size=18)
+        ),
+        scene=dict(
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            zaxis=dict(title='Altura (m)', showbackground=False, gridcolor='lightgray'),
+            aspectmode='data',
+            camera=dict(eye=dict(x=0.15, y=-2.1, z=0.45))
+        ),
+        annotations=[
+            dict(
+                x=0.01, y=0.02, xref='paper', yref='paper',
+                text=(
+                    f"<b>Resumen Geométrico:</b><br>"
+                    f"• D1: {D1:.2f} m | H1: {H1:.2f} m<br>"
+                    f"• D2: {D2:.2f} m | H2: {H2:.2f} m<br>"
+                    f"• Dp: {Dp:.2f} m<br>"
+                    f"• <b>Calado T: {T:.4f} m</b> ({zona_txt})"
+                ),
+                showarrow=False, align='left',
+                bgcolor='rgba(245, 247, 249, 0.92)',
+                bordercolor='#CCCCCC', borderwidth=1, borderpad=8,
+                font=dict(size=12, color='#111111')
+            )
+        ],
+        legend=dict(x=0.78, y=0.05, bgcolor='rgba(255,255,255,0.85)', bordercolor='#CCCCCC', borderwidth=1),
+        margin=dict(l=10, r=10, t=50, b=10),
+        height=620
+    )
+
+    return fig
+
+# ==========================================
+# 3. MÓDULO FRONTEND: INTERFAZ CON STREAMLIT
 # ==========================================
 
 st.set_page_config(page_title="Validador IALA G1006/G1099 - Boyas Oceanográficas", layout="wide")
@@ -187,6 +372,10 @@ V_corriente = st.sidebar.number_input("Velocidad de la Corriente (m/s)", value=1
 if st.button("🚀 Ejecutar Análisis y Validación IALA", type="primary"):
     res = calcular_boya_iala(D1, H1, D2, H2, Dp, t, rho_agua, m_estructura, m_lastre, m_equipos, rho_pu, V_viento, V_corriente)
     
+    # RENDERIZADO DE LA VISUALIZACIÓN GEOMÉTRICA Y CALADO ANTES DE LOS RESULTADOS
+    fig_boya = generar_grafico_boya(D1, H1, D2, H2, Dp, res['T'])
+    st.plotly_chart(fig_boya, use_container_width=True)
+    
     st.header("📊 Resultados del Análisis Hidrostático")
     
     col1, col2, col3, col4 = st.columns(4)
@@ -201,9 +390,9 @@ if st.button("🚀 Ejecutar Análisis y Validación IALA", type="primary"):
     st.warning("### 🎯 Alerta de Referencia: Punto Óptimo IALA (Factor de Reserva $RF = 2.25$)")
     st.markdown(f"""
     Para cumplir exactamente con el **Punto Óptimo de Reserva de Flotabilidad ($RF = 2.25$)** de la norma IALA G1099:
-    * **Volumen Sumergido Requerido ($V_{{sum}}$):** `{res['v_sum_optimo_225']:.4f} m³`
-    * **Masa Total Requerida ($M_{{total}}$):** `{res['m_total_optima_225']:.1f} kg`
-    * **Contrapeso / Lastre Adicional a Añadir:** **`+{res['lastre_adicional_optimo']:.1f} kg`** 
+    - **Volumen Sumergido Requerido ($V_{{sum}}$):** `{res['v_sum_optimo_225']:.4f} m³`
+    - **Masa Total Requerida ($M_{{total}}$):** `{res['m_total_optima_225']:.1f} kg`
+    - **Contrapeso / Lastre Adicional a Añadir:** **`+{res['lastre_adicional_optimo']:.1f} kg`** 
       *(calculado desde su masa total actual de {res['m_total']:.1f} kg)*
     """)
 
@@ -229,4 +418,4 @@ if st.button("🚀 Ejecutar Análisis y Validación IALA", type="primary"):
     if res['cumple_escora']:
         st.success(f"✅ **Ángulo de Escora CUMPLE IALA:** $\\theta$ = **{res['theta_escora']:.2f}°** (Límite operativo seguro: $\\le 15°$).")
     else:
-        st.error(f"❌ **NO CUMPLE (Escora excesiva):** El ángulo de inclinación calculado es de **{res['theta_escora']:.2f}°**, superando el límite máximo recomendado de $15^\circ$ por la normativa IALA ante tormenta de diseño.")
+        st.error(f"❌ **NO CUMPLE (Escora excesiva):** El ángulo de inclinación calculado es de **{res['theta_escora']:.2f}°**, superando el límite máximo recomendado de $15^\\circ$ por la normativa IALA ante tormenta de diseño.")

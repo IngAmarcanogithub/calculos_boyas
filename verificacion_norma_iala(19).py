@@ -372,10 +372,7 @@ V_corriente = st.sidebar.number_input("Velocidad de la Corriente (m/s)", value=1
 if st.button("🚀 Ejecutar Análisis y Validación IALA", type="primary"):
     res = calcular_boya_iala(D1, H1, D2, H2, Dp, t, rho_agua, m_estructura, m_lastre, m_equipos, rho_pu, V_viento, V_corriente)
     
-    # RENDERIZADO DE LA VISUALIZACIÓN GEOMÉTRICA Y CALADO ANTES DE LOS RESULTADOS
-    fig_boya = generar_grafico_boya(D1, H1, D2, H2, Dp, res['T'])
-    st.plotly_chart(fig_boya, use_container_width=True)
-    
+    # 1. PRIMERO: Resultados del Análisis Hidrostático
     st.header("📊 Resultados del Análisis Hidrostático")
     
     col1, col2, col3, col4 = st.columns(4)
@@ -385,6 +382,10 @@ if st.button("🚀 Ejecutar Análisis y Validación IALA", type="primary"):
     col4.metric("Factor Reserva ($RF$)", f"{res['rf']:.2f}")
     
     st.info(f"📍 **Condición Operativa de Calado:** {res['caso_calado']}")
+
+    # 2. DESPUÉS: Visualización 3D Interactiva de la Boya
+    fig_boya = generar_grafico_boya(D1, H1, D2, H2, Dp, res['T'])
+    st.plotly_chart(fig_boya, use_container_width=True)
     
     # ALERTA DINÁMICA DEL PUNTO ÓPTIMO IALA (RF = 2.25)
     st.warning("### 🎯 Alerta de Referencia: Punto Óptimo IALA (Factor de Reserva $RF = 2.25$)")
@@ -412,10 +413,14 @@ if st.button("🚀 Ejecutar Análisis y Validación IALA", type="primary"):
     if res['cumple_gm']:
         st.success(f"✅ **Estabilidad Metacéntrica (GM) CUMPLE IALA:** $GM$ = **{res['gm']:.3f} m** (Rango recomendado: 0.6 m – 1.2 m). La boya es estable y auto-adrizante sin exceso de rigidez.")
     else:
-        st.warning(f"⚠️ **ADVERTENCIA GM FUERA DE RANGO ÓPTIMO:** $GM$ = **{res['gm']:.3f} m**. Un valor muy bajo compromete el adrizamiento, y un valor muy alto (>1.2 m) genera movimientos violentos que fatigan la torre y dañan equipos.")
+        st.warning(f"⚠️ **ADVERTENCIA GM FUERA DE RANGO ÓPTIMO:** $GM$ = **{res['gm']:.3f} m**. Un valor muy bajo compromete el adrizamiento, y un valor muy alto (>1.2 m) genera movimientos violentos que fatigas la torre y dañan equipos.")
 
     # 3. Alerta Ángulo de Escora
     if res['cumple_escora']:
         st.success(f"✅ **Ángulo de Escora CUMPLE IALA:** $\\theta$ = **{res['theta_escora']:.2f}°** (Límite operativo seguro: $\\le 15°$).")
     else:
         st.error(f"❌ **NO CUMPLE (Escora excesiva):** El ángulo de inclinación calculado es de **{res['theta_escora']:.2f}°**, superando el límite máximo recomendado de $15^\\circ$ por la normativa IALA ante tormenta de diseño.")
+
+    st.markdown("---")
+    
+ 

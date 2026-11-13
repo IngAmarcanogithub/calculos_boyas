@@ -4,22 +4,29 @@ import streamlit as st
 from scipy.optimize import root_scalar
 
 # ==========================================
-# 0. CONFIGURACIÓN DE PÁGINA Y ESTILO ANCHO
+# 0. CONFIGURACIÓN DE PÁGINA Y ESTILO ANCHO/RESPONSIVO
 # ==========================================
 st.set_page_config(
     page_title="Validador IALA G1006/G1099 - Boyas Oceanográficas",
     layout="wide",
 )
 
-# INYECCIÓN DE CSS PARA OCUPAR EL 100% DEL ANCHO DE PANTALLA EN STREAMLIT CLOUD
+# INYECCIÓN DE CSS PARA OCUPAR EL 100% DEL ANCHO EN PC Y MOVILES
 st.markdown(
     """
     <style>
         .block-container {
             max-width: 100% !important;
-            padding-left: 2rem;
-            padding-right: 2rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
             padding-top: 2rem;
+        }
+        /* Forzar adaptabilidad total de gráficos Plotly en móviles y pantallas pequeñas */
+        .js-plotly-plot, .plotly, .plot-container {
+            width: 100% !important;
+        }
+        div[data-testid="stPlotlyChart"] {
+            width: 100% !important;
         }
     </style>
 """,
@@ -394,6 +401,7 @@ def generar_grafico_boya(D1, H1, D2, H2, Dp, T):
           x=0.5,
           font=dict(size=18),
       ),
+      autosize=True,  # Permite reescalado automático en responsive
       scene=dict(
           xaxis=dict(visible=False),
           yaxis=dict(visible=False),
@@ -518,12 +526,16 @@ if st.button("🚀 Ejecutar Análisis y Validación IALA", type="primary"):
 
   st.markdown("---")
 
-  # 2. Visualización 3D Interactiva justo debajo de la condición de calado
+  # 2. Visualización 3D Interactiva (Forzada al ancho completo y responsiva para móviles)
   fig_boya = generar_grafico_boya(D1, H1, D2, H2, Dp, res["T"])
   st.plotly_chart(
       fig_boya,
       use_container_width=True,
-      config={"responsive": True, "displayModeBar": True},
+      config={
+          "responsive": True,
+          "displayModeBar": True,
+          "scrollZoom": True,
+      },
   )
 
   st.markdown("---")
@@ -591,5 +603,4 @@ if st.button("🚀 Ejecutar Análisis y Validación IALA", type="primary"):
         f" máximo recomendado de $15^\\circ$ por la normativa IALA ante"
         " tormenta de diseño."
     )
-    
  

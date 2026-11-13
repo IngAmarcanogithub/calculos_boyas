@@ -4,38 +4,41 @@ from scipy.optimize import root_scalar
 import plotly.graph_objects as go
 
 # ==========================================
-# 0. CONFIGURACIÓN DE PÁGINA Y ESTILO ANCHO/RESPONSIVO
+# 0. CONFIGURACIÓN DE PÁGINA Y ESTILO 100% ANCHO RESPONSIVO
 # ==========================================
 st.set_page_config(
     page_title="Validador IALA G1006/G1099 - Boyas Oceanográficas",
     layout="wide"
 )
 
-# INYECCIÓN DE CSS AVANZADO PARA MÓVILES Y ANCHO TOTAL EN STREAMLIT CLOUD
+# INYECCIÓN DE CSS AVANZADO PARA ANCHO TOTAL ABSOLUTO EN MÓVILES Y PC
 st.markdown("""
     <style>
+        /* Expandir contenedor principal de Streamlit */
         .block-container {
             max-width: 100% !important;
-            padding-left: 1rem;
-            padding-right: 1rem;
-            padding-top: 2rem;
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+            padding-top: 1.5rem !important;
         }
         
-        /* Ajustes específicos para adaptar gráficos Plotly al 100% en teléfonos móviles */
+        /* Forzar que los gráficos Plotly ocupen el 100% exacto de la pantalla en cualquier dispositivo */
+        div[data-testid="stPlotlyChart"], 
+        div.element-container, 
+        .js-plotly-plot, 
+        .plotly, 
+        .plot-container {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        
+        /* Ajuste específico para pantallas táctiles y móviles */
         @media (max-width: 768px) {
             .block-container {
-                padding-left: 0.2rem !important;
-                padding-right: 0.2rem !important;
-                padding-top: 1rem !important;
-            }
-            div[data-testid="stPlotlyChart"] {
-                width: 100% !important;
-                max-width: 100% !important;
+                padding-left: 0.1rem !important;
+                padding-right: 0.1rem !important;
             }
             div[data-testid="stPlotlyChart"] > div {
-                width: 100% !important;
-            }
-            .js-plotly-plot, .plotly, .plot-container {
                 width: 100% !important;
             }
         }
@@ -369,7 +372,7 @@ def generar_grafico_boya(D1, H1, D2, H2, Dp, T):
             )
         ],
         legend=dict(x=0.75, y=0.05, bgcolor='rgba(255,255,255,0.85)', bordercolor='#CCCCCC', borderwidth=1),
-        margin=dict(l=5, r=5, t=40, b=5), # Márgenes compactos para evitar recortes en celulares
+        margin=dict(l=0, r=0, t=40, b=0),
         height=580
     )
 
@@ -418,7 +421,7 @@ if st.button("🚀 Ejecutar Análisis y Validación IALA", type="primary"):
     
     st.markdown("---")
     
-    # 2. Visualización 3D Interactiva (Optimizada al 100% responsive para móviles)
+    # 2. Visualización 3D Interactiva expandida al 100% del ancho real en móvil y PC
     fig_boya = generar_grafico_boya(D1, H1, D2, H2, Dp, res['T'])
     st.plotly_chart(
         fig_boya, 
@@ -458,4 +461,3 @@ if st.button("🚀 Ejecutar Análisis y Validación IALA", type="primary"):
         st.success(f"✅ **Ángulo de Escora CUMPLE IALA:** $\\theta$ = **{res['theta_escora']:.2f}°** (Límite operativo seguro: $\\le 15°$).")
     else:
         st.error(f"❌ **NO CUMPLE (Escora excesiva):** El ángulo de inclinación calculado es de **{res['theta_escora']:.2f}°**, superando el límite máximo recomendado de $15^\circ$ por la normativa IALA ante tormenta de diseño.")
- 

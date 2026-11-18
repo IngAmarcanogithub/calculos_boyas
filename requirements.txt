@@ -21,7 +21,7 @@ numpy==2.5.4
 packaging==26.3
 pandas==3.1.0
 pillow==13.0.0
-plotly
+plotly==6.3.0
 protobuf==7.36.2
 pyarrow==26.0.0
 pydeck==0.9.3
@@ -31,7 +31,7 @@ python-multipart==0.0.32
 referencing==0.37.0
 requests==2.34.2
 rpds-py==2026.9.1
-scipy
+scipy==1.16.3
 six==1.17.0
 starlette==1.10.0
 streamlit==1.66.1

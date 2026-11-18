@@ -389,6 +389,7 @@ def generar_grafico_boya(D1, H1, D2, H2, Dp, T):
         showlegend=False
     ))
 
+    # 👇 CAMBIO PRINCIPAL: Ejes sin rejilla y sin ticks (0 a 1.5 eliminado)
     fig.update_layout(
         title=dict(
             text="Visualización Geométrica y de Calado de la Boya (IALA G1006)",
@@ -398,9 +399,33 @@ def generar_grafico_boya(D1, H1, D2, H2, Dp, T):
         width=None,
         height=None,
         scene=dict(
-            xaxis=dict(visible=False),
-            yaxis=dict(visible=False),
-            zaxis=dict(title='Altura (m)', showbackground=False, gridcolor='lightgray'),
+            xaxis=dict(
+                visible=False,
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False,
+                showline=False,
+                showbackground=False,
+                ticks=''
+            ),
+            yaxis=dict(
+                visible=False,
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False,
+                showline=False,
+                showbackground=False,
+                ticks=''
+            ),
+            zaxis=dict(
+                title='',
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False,
+                showline=False,
+                showbackground=False,
+                ticks=''
+            ),
             aspectmode='data',
             camera=dict(eye=dict(x=0.15, y=-2.2, z=0.45)),
             domain=dict(x=[0, 1], y=[0, 1])

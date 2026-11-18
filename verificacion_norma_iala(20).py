@@ -50,7 +50,7 @@ st.markdown("""
             padding: 0 !important;
         }
 
-        /* Modo móvil agresivo */
+        /* Modo móvil agresivo: gráfico centrado y ajustado a la pantalla */
         @media (max-width: 768px) {
             .block-container {
                 padding-left: 0 !important;
@@ -59,20 +59,25 @@ st.markdown("""
             [data-testid="stVerticalBlock"] > div {
                 gap: 0.3rem !important;
             }
+            /* Contenedor del gráfico centrado con ancho controlado */
             div[data-testid="stPlotlyChart"] {
-                margin-left: 0 !important;
-                margin-right: 0 !important;
-                width: 100vw !important;
-                max-width: 100vw !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                width: 100% !important;
+                max-width: 100% !important;
                 height: 85vw !important;
                 max-height: 480px !important;
-                margin-left: calc(-50vw + 50%) !important;
+                margin: 0 auto !important;
+                padding: 0 !important;
             }
             div[data-testid="stPlotlyChart"] > div,
             div[data-testid="stPlotlyChart"] .js-plotly-plot {
                 height: 85vw !important;
                 max-height: 480px !important;
-                width: 100vw !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 auto !important;
             }
             /* Ocultar toolbar de Plotly en móvil para ganar ancho */
             .modebar-container {
@@ -470,8 +475,35 @@ if st.button("🚀 Ejecutar Análisis y Validación IALA", type="primary"):
     
     st.markdown("---")
     
-    # 2. Visualización 3D Interactiva expandida al 100% del ancho real en móvil y PC
+    # 2. Visualización 3D Interactiva centrada en móvil y ancho completo en PC
     fig_boya = generar_grafico_boya(D1, H1, D2, H2, Dp, res['T'])
+
+    # Contenedor flex para centrar el gráfico en móvil
+    st.markdown(
+        """
+        <style>
+        @media (max-width: 768px) {
+            /* Centrar el bloque del gráfico horizontalmente */
+            div[data-testid="stPlotlyChart"] {
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 auto !important;
+                padding: 0 !important;
+            }
+            div[data-testid="stPlotlyChart"] > div,
+            div[data-testid="stPlotlyChart"] .js-plotly-plot {
+                margin: 0 auto !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.plotly_chart(
         fig_boya,
